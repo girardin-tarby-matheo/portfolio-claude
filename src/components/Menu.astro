@@ -1,0 +1,165 @@
+---
+import { dessinIcone } from "../lib/svg";
+
+const pathname = Astro.url.pathname.replace(/\/+$/, "") || "/";
+const links = [
+    { href: "/", label: "Accueil" },
+    { href: "/a-propos", label: "À propos" },
+    { href: "/projets", label: "Mes Projets" },
+    { href: "/contact", label: "Contact" },
+];
+
+const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+};
+---
+
+<header class="navbar-container">
+    <div class="navbar-inner">
+        <!-- Logo / Titre -->
+        <a href="/" class="brand-title">
+            <Fragment set:html={dessinIcone("rose", "brand-rose")} />
+            <span><span class="brand-prefixe">Portfolio </span>Mathéo Girardin Tarby</span>
+        </a>
+
+        <!-- Navigation unifiée et douce -->
+        <nav class="nav-links" aria-label="Navigation principale">
+            {
+                links.map((link) => {
+                    const active = isActive(link.href);
+                    return (
+                        <a
+                            href={link.href}
+                            class={`nav-item ${active ? "active" : ""}`}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {link.label}
+                        </a>
+                    );
+                })
+            }
+        </nav>
+    </div>
+</header>
+
+<style>
+    .navbar-container {
+        width: 100%;
+        padding: 2rem 2.5rem;
+        display: flex;
+        justify-content: center;
+    }
+
+    .navbar-inner {
+        width: 100%;
+        max-width: 1280px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: #f5f2eb;
+        border: 1px solid rgba(22, 88, 123, 0.16);
+        box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+        border-radius: 16px;
+        padding: 0.8rem 1rem 0.8rem 1.25rem;
+    }
+
+    /* Titre du portfolio : même Monograph que les titres de la carte */
+    .brand-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-family: var(--font-monograph);
+        font-size: 1.3rem;
+        line-height: 1;
+        color: #0f425f;
+        text-decoration: none;
+    }
+
+    .brand-title :global(.brand-rose) {
+        width: 1.7rem;
+        height: 1.7rem;
+        flex: none;
+        transition: transform 220ms ease;
+    }
+
+    .brand-title:hover :global(.brand-rose) {
+        transform: rotate(45deg);
+    }
+
+    /* Conteneur des liens */
+    .nav-links {
+        display: flex;
+        gap: 0.35rem;
+        align-items: center;
+    }
+
+    /* Liens individuels : pilules, comme les filtres de projets */
+    .nav-item {
+        font-family: var(--font-inter);
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #4a5568;
+        text-decoration: none;
+        padding: 0.55rem 1.05rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        transition:
+            color 180ms ease,
+            background 180ms ease,
+            border-color 180ms ease;
+    }
+
+    .nav-item:hover {
+        color: #0f425f;
+        background: rgba(132, 179, 206, 0.16);
+        border-color: rgba(22, 88, 123, 0.16);
+    }
+
+    /* État actif : même bleu que le filtre « Tous » */
+    .nav-item.active {
+        color: #f5eedd;
+        background: #16587b;
+        border-color: #16587b;
+    }
+
+    /* Responsive mobile */
+    @media (max-width: 768px) {
+        .navbar-container {
+            padding: 1rem;
+        }
+        .navbar-inner {
+            flex-direction: column;
+            gap: 0.7rem;
+            text-align: center;
+            padding: 1rem;
+        }
+        .nav-links {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+        .nav-item {
+            padding: 0.45rem 0.8rem;
+            font-size: 0.88rem;
+        }
+    }
+
+    /* Petit écran : le nom seul tient sur une ligne */
+    @media (max-width: 480px) {
+        .brand-prefixe {
+            display: none;
+        }
+        .brand-title {
+            white-space: nowrap;
+        }
+        .nav-links {
+            gap: 0.1rem;
+        }
+        .nav-item {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.82rem;
+        }
+    }
+</style>

@@ -1,0 +1,22 @@
+---
+/**
+ * En-tête de page commun : sur-titre, grand titre Monograph, introduction (slot)
+ * et, à droite, une illustration tirée de la carte (slot « illustration »).
+ */
+interface Props {
+	surTitre?: string;
+	titre: string;
+}
+const { surTitre, titre } = Astro.props;
+---
+
+<header class="apparition flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-b border-dashed border-bleu/30 pb-6">
+	<div class="min-w-0 flex-1 basis-80 space-y-3">
+		{surTitre && <p class="sur-titre">{surTitre}</p>}
+		<h1 class="titre-page">{titre}</h1>
+		<slot />
+	</div>
+	<div class="shrink-0">
+		<slot name="illustration" />
+	</div>
+</header>

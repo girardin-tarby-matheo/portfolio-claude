@@ -1,0 +1,62 @@
+---
+/**
+ * Carte d'un projet (grille « Mes Projets », projets voisins…).
+ * Sans image de couverture, elle montre le dessin du lieu du projet sur la carte.
+ */
+import type { ProjetCarte } from "../data/projets";
+import { LIEUX } from "../data/lieux";
+import { dessinLieu } from "../lib/svg";
+
+interface Props {
+	projet: ProjetCarte;
+	/** Niveau du titre (h2 dans une grille, h3 sous un titre de section). */
+	niveau?: "h2" | "h3";
+}
+const { projet, niveau: Titre = "h2" } = Astro.props;
+const lieu = LIEUX.find((l) => l.slug === projet.lieu);
+const dessin = projet.cover ? "" : dessinLieu(projet.lieu, "dessin-lieu", `carte-${projet.id}`);
+---
+
+<a href={`/projets/${projet.id}`} class="papier papier-lien group h-full overflow-hidden">
+	<div class="media-wrap relative h-52 w-full overflow-hidden">
+		{
+			projet.cover ? (
+				<img src={projet.cover} alt="" class="h-full w-full object-cover" loading="lazy" />
+			) : dessin ? (
+				<div class="h-full w-full bg-creme p-3 transition-transform duration-200 group-hover:-translate-y-1">
+					<Fragment set:html={dessin} />
+				</div>
+			) : (
+				<div class="flex h-full w-full items-center justify-center bg-creme text-sm font-semibold text-bleu">
+					Visuel {projet.repli ? "[À COMPLÉTER]" : "indisponible"}
+				</div>
+			)
+		}
+	</div>
+
+	<div class="space-y-3 border-t border-bleu/15 p-4 sm:p-5">
+		<div class="flex items-start justify-between gap-4">
+			<Titre class="m-0 font-monograph text-xl leading-[1.06] font-normal text-encre">{projet.titre}</Titre>
+			{projet.dateTexte && <p class="m-0 text-[0.72rem] tracking-[0.06em] whitespace-nowrap text-encre/75 uppercase">{projet.dateTexte}</p>}
+		</div>
+		<div class="flex flex-wrap gap-2">
+			{projet.categories.map((cat) => <span class="pastille">{cat}</span>)}
+		</div>
+		{lieu && <p class="m-0 text-xs text-gris">Sur la carte : {lieu.nom}</p>}
+	</div>
+</a>
+
+<style>
+	/* léger voile bleu encre en bas des photos, comme sur les cartes d'origine */
+	.media-wrap:has(img)::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(to top, rgba(15, 66, 95, 0.28), transparent 42%);
+		opacity: 0.75;
+		transition: opacity 220ms ease;
+	}
+	.group:hover .media-wrap::after {
+		opacity: 0.45;
+	}
+</style>

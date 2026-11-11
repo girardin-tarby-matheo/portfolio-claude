@@ -1,0 +1,71 @@
+---
+const { url } = Astro.props;
+
+// Si pas de lien → ne rien afficher
+if (!url) {
+    return null;
+}
+
+// Extraction de l'ID YouTube depuis différents formats possibles
+function extractYoutubeId(link) {
+    try {
+        const urlObj = new URL(link);
+
+        // Format standard : https://www.youtube.com/watch?v=ID
+        if (urlObj.searchParams.get("v")) {
+            return urlObj.searchParams.get("v");
+        }
+
+        // Format live : https://www.youtube.com/live/ID
+        if (urlObj.pathname.startsWith("/live/")) {
+            return urlObj.pathname.replace("/live/", "");
+        }
+
+        // Format partage : https://youtu.be/ID
+        if (urlObj.hostname === "youtu.be") {
+            return urlObj.pathname.substring(1);
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+const videoId = extractYoutubeId(url);
+
+// Si impossible d'extraire l'ID → ne rien afficher
+if (!videoId) {
+    return null;
+}
+---
+
+<div class="youtube-embed-container my-8">
+    <iframe
+        class="youtube-embed"
+        src={`https://www.youtube.com/embed/${videoId}`}
+        title="YouTube video player"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+</div>
+
+<style is:global>
+    .youtube-embed-container {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56.25%; /* ratio 16/9 */
+        height: 0;
+        overflow: hidden;
+        border-radius: 12px;
+    }
+
+    .youtube-embed-container .youtube-embed {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+</style>

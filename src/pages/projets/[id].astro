@@ -1,0 +1,170 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import CardProjet from "../../components/CardProjet.astro";
+import InstagramEmbed from "../../components/InstagramEmbed.astro";
+import YoutubeEmbed from "../../components/YoutubeEmbed.astro";
+import YoutubeChannelPreview from "../../components/YoutubeChannelPreview.astro";
+import { chargerProjets, parDateDecroissante, type ProjetCarte } from "../../data/projets";
+import { LIEUX, ZONES } from "../../data/lieux";
+import { dessinLieu } from "../../lib/svg";
+
+export async function getStaticPaths() {
+	const { projets } = await chargerProjets();
+	const tries = [...projets].sort(parDateDecroissante);
+	return tries.map((projet, i) => ({
+		params: { id: projet.id },
+		// trois projets voisins dans l'ordre chronologique, en bouclant sur la liste
+		props: { projet, voisins: [1, 2, 3].map((d) => tries[(i + d) % tries.length]).filter((p) => p.id !== projet.id) },
+	}));
+}
+
+const { projet, voisins } = Astro.props as { projet: ProjetCarte; voisins: ProjetCarte[] };
+
+const lieu = LIEUX.find((l) => l.slug === projet.lieu);
+const univers = lieu ? ZONES.find((z) => z.id === lieu.univers) : undefined;
+const dessin = dessinLieu(projet.lieu, "dessin-lieu", "fiche");
+
+const aEmbed = Boolean(projet.youtube || projet.channelId || projet.instagram);
+const aSuite = projet.descriptionsSuite.length > 0;
+const resume = projet.descriptions[0];
+---
+
+<Layout large title={projet.titre} description={resume && !projet.repli ? resume.slice(0, 155) : `Projet « ${projet.titre} » de Mathéo Girardin Tarby.`}>
+	<article class="space-y-8 sm:space-y-10">
+		<a href="/projets" class="bouton apparition">
+			<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+			Tous les projets
+		</a>
+
+		{/* En-tête : photo de couverture encadrée comme la carte, ou titre + dessin du lieu */}
+		{
+			projet.cover ? (
+				<header class="apparition relative overflow-hidden rounded-2xl border border-bleu/15 shadow-carte">
+					<img src={projet.cover} alt="" class="h-[46vh] min-h-72 w-full object-cover sm:h-[58vh] lg:h-[68vh]" loading="eager" />
+					<div class="pointer-events-none absolute inset-0 bg-linear-to-t from-encre/85 via-encre/30 to-transparent" />
+					<div class="absolute inset-x-0 bottom-0 space-y-3 p-5 sm:p-8 lg:p-10">
+						<p class="sur-titre text-creme!">Mes Projets</p>
+						<h1 class="titre-page max-w-4xl text-creme!">{projet.titre}</h1>
+						{(projet.categories.length > 0 || projet.dateTexte) && (
+							<div class="flex flex-wrap items-center gap-2">
+								{projet.categories.map((cat) => (
+									<span class="pastille border-creme/50! bg-creme/15! text-creme!">{cat}</span>
+								))}
+								{projet.dateTexte && <span class="pastille border-creme/50! bg-encre/40! text-creme!">{projet.dateTexte}</span>}
+							</div>
+						)}
+					</div>
+				</header>
+			) : (
+				<header class="apparition flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-b border-dashed border-bleu/30 pb-6">
+					<div class="min-w-0 flex-1 basis-80 space-y-3">
+						<p class="sur-titre">Mes Projets</p>
+						<h1 class="titre-page">{projet.titre}</h1>
+						{(projet.categories.length > 0 || projet.dateTexte) && (
+							<div class="flex flex-wrap items-center gap-2">
+								{projet.categories.map((cat) => <span class="pastille">{cat}</span>)}
+								{projet.dateTexte && <span class="pastille">{projet.dateTexte}</span>}
+							</div>
+						)}
+					</div>
+					{dessin && (
+						<div class="h-44 w-56 shrink-0 sm:h-52 sm:w-72">
+							<Fragment set:html={dessinLieu(projet.lieu, "dessin-lieu", "tete")} />
+						</div>
+					)}
+				</header>
+			)
+		}
+
+		<!-- Bloc 1 : desc1 + desc2 à gauche, image secondaire à droite -->
+		{
+			(projet.descriptions.length > 0 || projet.imageSecondaire) && (
+				<section class:list={["apparition apparition-2 grid grid-cols-1 gap-8", projet.imageSecondaire && "md:grid-cols-2"]}>
+					<div class="space-y-5">
+						{projet.descriptions.map((d) => <p class="texte">{d}</p>)}
+					</div>
+					{projet.imageSecondaire && (
+						<div class="flex items-center justify-center">
+							<img src={projet.imageSecondaire} alt="" class="h-auto w-full max-w-xl rounded-2xl border border-bleu/15 object-contain shadow-carte" loading="lazy" />
+						</div>
+					)}
+				</section>
+			)
+		}
+
+		<!-- Bloc 2 : image 3, sinon médias intégrés, sinon texte seul -->
+		{
+			projet.image3 ? (
+				<section class="grid grid-cols-1 gap-8 md:grid-cols-2">
+					<div class="flex items-center justify-center">
+						<img src={projet.image3} alt="" class="h-auto w-full max-w-xl rounded-2xl border border-bleu/15 object-contain shadow-carte" loading="lazy" />
+					</div>
+					<div class="space-y-5">
+						{projet.descriptionsSuite.map((d) => <p class="texte">{d}</p>)}
+					</div>
+				</section>
+			) : aEmbed ? (
+				<section class:list={["grid grid-cols-1 gap-8", aSuite && "md:grid-cols-2"]}>
+					<div class="flex items-center justify-center">
+						<div class="w-full max-w-xl space-y-6">
+							{projet.instagram && <InstagramEmbed url={projet.instagram} />}
+							{projet.youtube && <YoutubeEmbed url={projet.youtube} />}
+							{projet.channelId && <YoutubeChannelPreview channelId={projet.channelId} />}
+						</div>
+					</div>
+					{aSuite && (
+						<div class="space-y-5">
+							{projet.descriptionsSuite.map((d) => <p class="texte">{d}</p>)}
+						</div>
+					)}
+				</section>
+			) : aSuite ? (
+				<section class="space-y-5">
+					{projet.descriptionsSuite.map((d) => <p class="texte">{d}</p>)}
+				</section>
+			) : null
+		}
+
+		{projet.repli && !aEmbed && <p class="a-completer">Images et médias du projet : [À COMPLÉTER]</p>}
+
+		{
+			projet.lien && (
+				<a href={projet.lien} target="_blank" rel="noopener" class="bouton bouton-plein">
+					Voir le projet
+					<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+				</a>
+			)
+		}
+
+		<!-- Le lieu du projet sur la carte d'accueil -->
+		{
+			lieu && dessin && (
+				<aside class="papier flex flex-col items-center gap-x-8 gap-y-4 p-5 sm:flex-row sm:p-6" aria-labelledby="titre-lieu">
+					<div class="h-40 w-52 shrink-0">
+						<Fragment set:html={dessin} />
+					</div>
+					<div class="space-y-3 text-center sm:text-left">
+						<p class="sur-titre">Sur la carte{univers ? ` · ${univers.nom}` : ""}</p>
+						<h2 id="titre-lieu" class="titre-section">{lieu.nom}</h2>
+						<p class="texte texte-doux">Ce projet a son bâtiment sur la carte d'accueil.</p>
+						<a href={`/#${projet.id}`} class="bouton bouton-plein">Voir sur la carte</a>
+					</div>
+				</aside>
+			)
+		}
+
+		{
+			voisins.length > 0 && (
+				<section class="space-y-5" aria-labelledby="titre-autres">
+					<div class="flex flex-wrap items-end justify-between gap-3 border-b border-dashed border-bleu/30 pb-3">
+						<h2 id="titre-autres" class="titre-section">Autres projets</h2>
+						<a href="/projets" class="lien text-sm">Tous les projets</a>
+					</div>
+					<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
+						{voisins.map((v) => <CardProjet projet={v} niveau="h3" />)}
+					</div>
+				</section>
+			)
+		}
+	</article>
+</Layout>

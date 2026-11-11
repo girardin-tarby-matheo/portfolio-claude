@@ -1,25 +1,66 @@
 ---
-import '../styles/global.css';
+import "../styles/global.css";
+import Menu from "../components/Menu.astro";
+import Pied from "../components/Pied.astro";
+import Decor from "../components/carte/Decor.astro";
 
 interface Props {
+	/** Titre de la page (sans le nom du site, ajouté automatiquement). */
 	title?: string;
 	description?: string;
+	/** Page « plein cadre » : le contenu occupe tout l'écran sous le menu (carte d'accueil). */
+	plein?: boolean;
+	/** Page plus large (grille de projets, fiche projet). */
+	large?: boolean;
 }
 
-const { title = 'Portfolio', description = 'Mon portfolio' } = Astro.props;
+const SITE = "Portfolio Mathéo Girardin Tarby";
+const {
+	title,
+	description = "Portfolio de Mathéo Girardin Tarby, étudiant en BUT MMI.",
+	plein = false,
+	large = false,
+} = Astro.props;
+const titreComplet = title && title !== SITE ? `${title} · ${SITE}` : SITE;
 ---
 
 <!doctype html>
 <html lang="fr">
 	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="description" content={description} />
+		<meta name="theme-color" content="#F5EEDD" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
-		<title>{title}</title>
+		<title>{titreComplet}</title>
 	</head>
-	<body class="min-h-screen bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
-		<slot />
+	<body class={plein ? "flex h-dvh flex-col overflow-hidden" : "flex min-h-dvh flex-col"}>
+		<a
+			href="#contenu"
+			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-bleu focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-creme"
+		>
+			Aller au contenu
+		</a>
+		<Menu />
+
+		{
+			plein ? (
+				<main id="contenu" class="flex min-h-0 flex-1 flex-col">
+					<slot />
+				</main>
+			) : (
+				<>
+					<!-- symboles du décor de la carte (arbres, bancs…) réutilisés dans les pages -->
+					<Decor />
+					<main id="contenu" class="flex-1 px-4 pb-16 pt-4 sm:px-6 sm:pt-8 lg:px-10">
+						<div class:list={["mx-auto w-full", large ? "max-w-[1280px]" : "max-w-5xl"]}>
+							<slot />
+						</div>
+					</main>
+					<Pied />
+				</>
+			)
+		}
 	</body>
 </html>

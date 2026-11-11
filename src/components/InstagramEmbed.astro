@@ -1,0 +1,56 @@
+---
+const { url } = Astro.props;
+
+if (!url) {
+    return null;
+}
+---
+
+<div class="instagram-embed mx-auto my-8 max-w-full rounded-xl">
+    <blockquote
+        class="instagram-media"
+        data-instgrm-permalink={url}
+        data-instgrm-version="14"
+    >
+    </blockquote>
+</div>
+
+<style is:global>
+    .instagram-embed {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .instagram-embed blockquote.instagram-media {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        background: transparent !important;
+    }
+
+    .instagram-embed blockquote.instagram-media > div,
+    .instagram-embed blockquote.instagram-media > div > iframe {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        display: block !important;
+    }
+
+    .instagram-embed blockquote.instagram-media > div {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+    .instagram-embed blockquote.instagram-media > div > iframe {
+        height: auto !important;
+        min-height: 0 !important;
+        aspect-ratio: auto !important;
+    }
+</style>
+
+<script async src="https://www.instagram.com/embed.js"></script>

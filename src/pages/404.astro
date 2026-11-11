@@ -1,0 +1,22 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Bosquet from "../components/Bosquet.astro";
+import Personnage from "../components/carte/Personnage.astro";
+---
+
+<Layout title="Page introuvable" description="Cette page n'existe pas.">
+	<section class="apparition mx-auto flex max-w-xl flex-col items-center gap-5 py-10 text-center">
+		<div class="flex items-end gap-2" aria-hidden="true">
+			<Bosquet elements={["sapin", "sapin", "arbre"]} />
+			<div class="w-12 pb-1"><Personnage /></div>
+			<Bosquet elements={["arbre", "souche", "sapin"]} />
+		</div>
+		<p class="sur-titre">Erreur 404</p>
+		<h1 class="titre-page">Perdu en forêt</h1>
+		<p class="texte texte-doux">Ce sentier ne mène nulle part : la page demandée n'existe pas ou a été déplacée.</p>
+		<div class="flex flex-wrap justify-center gap-2">
+			<a href="/" class="bouton bouton-plein">Retour à la carte</a>
+			<a href="/projets" class="bouton">Mes projets</a>
+		</div>
+	</section>
+</Layout>

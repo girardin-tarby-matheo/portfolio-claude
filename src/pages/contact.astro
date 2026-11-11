@@ -1,0 +1,85 @@
+---
+import Layout from "../layouts/Layout.astro";
+import EnTete from "../components/EnTete.astro";
+import Bosquet from "../components/Bosquet.astro";
+
+// Coordonnées affichées à côté du formulaire : remplace les « [À COMPLÉTER] » (et ajoute href pour un lien).
+const coordonnees: Array<{ nom: string; valeur: string; href?: string }> = [
+	{ nom: "E-mail", valeur: "[À COMPLÉTER]" },
+	{ nom: "LinkedIn", valeur: "[À COMPLÉTER]" },
+	{ nom: "Instagram", valeur: "[À COMPLÉTER]" },
+];
+---
+
+<Layout title="Contact" description="Contacter Mathéo Girardin Tarby, étudiant en BUT MMI.">
+	<div class="space-y-10">
+		<EnTete surTitre="Contact" titre="Me contacter">
+			<p class="texte texte-doux">Une question, un projet, une proposition ? Écris-moi avec le formulaire.</p>
+			<Bosquet slot="illustration" elements={["arbre", "banc", "sapin"]} class="hidden sm:flex" />
+		</EnTete>
+
+		<div class="apparition apparition-2 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+			<!--
+				Formulaire Netlify : l'envoi fonctionne une fois le site déployé sur Netlify
+				(les messages arrivent dans l'onglet « Forms » du tableau de bord). En local, l'envoi échoue.
+			-->
+			<form class="papier space-y-5 p-5 sm:p-7" name="contact" method="POST" action="/contact/merci" data-netlify="true" netlify-honeypot="site-web">
+				<input type="hidden" name="form-name" value="contact" />
+				<p class="hidden">
+					<label>Ne pas remplir : <input name="site-web" tabindex="-1" autocomplete="off" /></label>
+				</p>
+
+				<div class="grid gap-5 sm:grid-cols-2">
+					<div>
+						<label class="champ-label" for="contact-nom">Nom</label>
+						<input class="champ" id="contact-nom" name="nom" type="text" autocomplete="name" required />
+					</div>
+					<div>
+						<label class="champ-label" for="contact-email">E-mail</label>
+						<input class="champ" id="contact-email" name="email" type="email" autocomplete="email" required />
+					</div>
+				</div>
+
+				<div>
+					<label class="champ-label" for="contact-sujet">Sujet <span class="font-normal text-gris">(facultatif)</span></label>
+					<input class="champ" id="contact-sujet" name="sujet" type="text" />
+				</div>
+
+				<div>
+					<label class="champ-label" for="contact-message">Message</label>
+					<textarea class="champ min-h-40 resize-y" id="contact-message" name="message" rows="6" required></textarea>
+				</div>
+
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<p class="m-0 text-sm text-gris">Les champs Nom, E-mail et Message sont obligatoires.</p>
+					<button type="submit" class="bouton bouton-plein">Envoyer le message</button>
+				</div>
+			</form>
+
+			<aside class="space-y-5" aria-labelledby="titre-coordonnees">
+				<div class="papier space-y-4 p-5 sm:p-6">
+					<h2 id="titre-coordonnees" class="titre-section">Coordonnées</h2>
+					<dl class="m-0 space-y-3">
+						{
+							coordonnees.map((c) => (
+								<div class="border-t border-dashed border-bleu/25 pt-3 first:border-0 first:pt-0">
+									<dt class="sur-titre">{c.nom}</dt>
+									<dd class="m-0 mt-1 text-encre">
+										{c.href ? <a class="lien" href={c.href}>{c.valeur}</a> : c.valeur}
+									</dd>
+								</div>
+							))
+						}
+					</dl>
+				</div>
+				<div class="papier space-y-3 p-5 sm:p-6">
+					<p class="texte texte-doux">Pour voir ce que je fais avant d'écrire :</p>
+					<div class="flex flex-wrap gap-2">
+						<a href="/" class="bouton">La carte</a>
+						<a href="/projets" class="bouton">Mes projets</a>
+					</div>
+				</div>
+			</aside>
+		</div>
+	</div>
+</Layout>

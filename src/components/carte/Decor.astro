@@ -1,0 +1,10 @@
+---
+/**
+ * Symboles du décor (arbres, sapins, buissons, bancs, souches), définis une seule fois par page
+ * puis réutilisés avec <use href="#d-…">. Les dessins sont dans src/assets/icones/.
+ */
+import { symbolesDecor } from "../../lib/svg";
+import { TYPES_DECOR } from "../../data/lieux";
+---
+
+<Fragment set:html={symbolesDecor(TYPES_DECOR)} />

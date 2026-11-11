@@ -1,0 +1,78 @@
+---
+/** Aperçu d'une chaîne YouTube : bannière et avatar locaux, trois dernières vidéos via le flux RSS. */
+const { channelId } = Astro.props;
+
+if (!channelId) return null;
+
+// Images locales (dans /public/youtube/)
+const disponibles = Object.keys(import.meta.glob("/public/youtube/*.png"));
+const local = (nom: string) => (disponibles.some((f) => f.endsWith(`/${nom}`)) ? `/youtube/${nom}` : null);
+const bannerLocal = local(`${channelId}-banner.png`);
+const avatarLocal = local(`${channelId}-avatar.png`);
+
+// Flux RSS pour les vidéos
+const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+
+let feed: { title: string | null; videos: Array<{ id: string | null; title: string | null; thumbnail: string | null }> } = {
+	title: null,
+	videos: [],
+};
+
+try {
+	const res = await fetch(feedUrl, { signal: AbortSignal.timeout(4000) });
+	const text = await res.text();
+
+	const channelTitle = text.match(/<title>([^<]+)<\/title>/)?.[1] ?? null;
+
+	const entries = [...text.matchAll(/<entry>([\s\S]*?)<\/entry>/g)]
+		.slice(0, 3)
+		.map((match) => {
+			const item = match[1];
+			return {
+				id: item.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1] ?? null,
+				title: item.match(/<title>([^<]+)<\/title>/)?.[1] ?? null,
+				thumbnail: item.match(/<media:thumbnail[^>]*url="([^"]+)"[^>]*\/?>/)?.[1] ?? null,
+			};
+		})
+		.filter((v) => v.id && v.thumbnail);
+
+	feed = { title: channelTitle, videos: entries };
+} catch {
+	// Si le flux échoue, on garde l'affichage local.
+}
+---
+
+<div class="papier mx-auto w-full max-w-3xl overflow-hidden">
+	<!-- Bannière locale -->
+	{bannerLocal && <img src={bannerLocal} alt="" class="h-40 w-full object-cover" loading="lazy" />}
+
+	<!-- Avatar + nom -->
+	<div class="flex items-center gap-4 p-5">
+		{avatarLocal && <img src={avatarLocal} alt="" class="h-16 w-16 rounded-full border border-bleu/20 object-cover" loading="lazy" />}
+
+		<div class="space-y-2">
+			<h2 class="m-0 font-monograph text-2xl font-normal text-encre">{feed.title ?? "Chaîne YouTube"}</h2>
+			<a href={`https://www.youtube.com/channel/${channelId}`} target="_blank" rel="noopener" class="bouton bouton-plein">
+				Voir la chaîne
+			</a>
+		</div>
+	</div>
+
+	{
+		feed.videos.length > 0 && (
+			<div class="grid grid-cols-1 gap-4 border-t border-bleu/15 p-5 sm:grid-cols-3">
+				{feed.videos.map((video) => (
+					<a
+						href={`https://www.youtube.com/watch?v=${video.id}`}
+						target="_blank"
+						rel="noopener"
+						class="papier-lien overflow-hidden rounded-xl border border-bleu/15 bg-papier"
+					>
+						<img src={video.thumbnail} alt="" class="aspect-video w-full object-cover" loading="lazy" />
+						<p class="m-0 line-clamp-2 p-3 text-sm font-semibold text-encre">{video.title}</p>
+					</a>
+				))}
+			</div>
+		)
+	}
+</div>

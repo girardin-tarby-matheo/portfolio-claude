@@ -1,0 +1,26 @@
+---
+/**
+ * Petit bosquet décoratif : les arbres de la carte, réutilisés dans les pages.
+ * Les dessins sont dans src/assets/icones/ ; les symboles sont inclus par le Layout (carte/Decor.astro).
+ */
+interface Props {
+	/** Éléments du bosquet, de gauche à droite. */
+	elements?: Array<"arbre" | "sapin" | "buisson" | "souche" | "banc">;
+	class?: string;
+}
+import { tailleIcone } from "../lib/svg";
+const { elements = ["sapin", "arbre", "buisson"], class: classe } = Astro.props;
+---
+
+<div class:list={["flex items-end gap-1", classe]} aria-hidden="true">
+	{
+		elements.map((t) => {
+			const [w, h] = tailleIcone(t);
+			return (
+				<svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} class="max-w-none shrink-0" focusable="false">
+					<use href={`#d-${t}`} />
+				</svg>
+			);
+		})
+	}
+</div>

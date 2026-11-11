@@ -1,0 +1,17 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Bosquet from "../../components/Bosquet.astro";
+---
+
+<Layout title="Message envoyé" description="Confirmation d'envoi du message.">
+	<section class="apparition mx-auto flex max-w-xl flex-col items-center gap-5 py-10 text-center">
+		<Bosquet elements={["sapin", "arbre", "banc", "buisson"]} />
+		<p class="sur-titre">Contact</p>
+		<h1 class="titre-page">Message envoyé</h1>
+		<p class="texte texte-doux">Merci, ton message est bien parti. Je te réponds dès que possible.</p>
+		<div class="flex flex-wrap justify-center gap-2">
+			<a href="/" class="bouton bouton-plein">Retour à la carte</a>
+			<a href="/projets" class="bouton">Mes projets</a>
+		</div>
+	</section>
+</Layout>

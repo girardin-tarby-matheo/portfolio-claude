@@ -1,0 +1,119 @@
+---
+import Layout from "../layouts/Layout.astro";
+import EnTete from "../components/EnTete.astro";
+import Bosquet from "../components/Bosquet.astro";
+import Personnage from "../components/carte/Personnage.astro";
+import { chargerProjets } from "../data/projets";
+import { A_COMPLETER } from "../data/projets-repli";
+import { LIEUX, ZONES } from "../data/lieux";
+import { dessinLieu } from "../lib/svg";
+
+const { projets } = await chargerProjets();
+
+// Les cinq univers de la carte, avec leurs projets (données réelles, rien d'inventé)
+const univers = ZONES.map((z) => {
+	const lieux = LIEUX.filter((l) => l.univers === z.id);
+	const slugs = new Set<string>(lieux.map((l) => l.slug));
+	return {
+		...z,
+		dessin: dessinLieu(lieux[0]?.slug, "dessin-lieu", `univers-${z.id}`),
+		projets: projets.filter((p) => p.lieu && slugs.has(p.lieu)),
+	};
+}).filter((u) => u.projets.length > 0);
+
+// Catégories réellement présentes dans les projets, avec leur nombre
+const compte = new Map<string, number>();
+for (const p of projets) for (const c of p.categories) if (c !== A_COMPLETER) compte.set(c, (compte.get(c) ?? 0) + 1);
+const categories = [...compte].sort((a, b) => b[1] - a[1]);
+---
+
+<Layout title="À propos" description="Qui est Mathéo Girardin Tarby, étudiant en BUT MMI : parcours, compétences et terrains de projets.">
+	<div class="space-y-12">
+		<EnTete surTitre="À propos" titre="Mathéo Girardin Tarby">
+			<p class="texte texte-doux">Étudiant en BUT MMI (Métiers du Multimédia et de l'Internet).</p>
+			<div slot="illustration" class="flex items-end gap-2" aria-hidden="true">
+				<Bosquet elements={["sapin", "arbre"]} />
+				<div class="w-16 pb-1"><Personnage /></div>
+				<Bosquet elements={["buisson"]} />
+			</div>
+		</EnTete>
+
+		<section class="apparition apparition-2 grid gap-6 md:grid-cols-[1fr_1.6fr]" aria-labelledby="titre-presentation">
+			<h2 id="titre-presentation" class="titre-section">Présentation</h2>
+			<div class="space-y-4">
+				<p class="a-completer">[À COMPLÉTER] Quelques phrases pour te présenter : qui tu es, ce que tu aimes faire, ce que tu cherches (stage, alternance…).</p>
+			</div>
+		</section>
+
+		<section class="apparition apparition-3 grid gap-6 md:grid-cols-[1fr_1.6fr]" aria-labelledby="titre-parcours">
+			<h2 id="titre-parcours" class="titre-section">Parcours</h2>
+			<ol class="m-0 list-none space-y-4 p-0">
+				<li class="papier p-5">
+					<p class="sur-titre">Formation · [À COMPLÉTER] années</p>
+					<h3 class="mt-1 mb-2 font-monograph text-xl font-normal text-encre">BUT MMI</h3>
+					<p class="a-completer">[À COMPLÉTER] Établissement, parcours choisi, ce que tu y apprends.</p>
+				</li>
+				<li class="a-completer">[À COMPLÉTER] Autres étapes : diplômes précédents, stages, expériences, engagements associatifs.</li>
+			</ol>
+		</section>
+
+		<section class="grid gap-6 md:grid-cols-[1fr_1.6fr]" aria-labelledby="titre-competences">
+			<h2 id="titre-competences" class="titre-section">Compétences et outils</h2>
+			<div class="space-y-4">
+				{
+					categories.length > 0 && (
+						<div class="space-y-2">
+							<p class="texte texte-doux">Ce que je pratique dans mes projets :</p>
+							<ul class="m-0 flex list-none flex-wrap gap-2 p-0">
+								{categories.map(([cat, n]) => <li class="pastille">{cat}<span class="ml-1.5 font-normal text-bleu/70">{n}</span></li>)}
+							</ul>
+						</div>
+					)
+				}
+				<p class="a-completer">[À COMPLÉTER] Tes compétences (captation, montage, graphisme, développement web…) et les logiciels que tu utilises.</p>
+			</div>
+		</section>
+
+		<section class="space-y-5" aria-labelledby="titre-terrains">
+			<div class="flex flex-wrap items-end justify-between gap-3 border-b border-dashed border-bleu/30 pb-3">
+				<div class="space-y-1">
+					<h2 id="titre-terrains" class="titre-section">Mes terrains</h2>
+					<p class="texte texte-doux">Les {univers.length} univers de la carte et les projets qui s'y trouvent.</p>
+				</div>
+				<a href="/" class="bouton bouton-plein">Explorer la carte</a>
+			</div>
+
+			<ul class="m-0 grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+				{
+					univers.map((u) => (
+						<li class="papier flex flex-col overflow-hidden">
+							<div class="h-40 bg-creme p-3" set:html={u.dessin} />
+							<div class="flex-1 space-y-2 border-t border-bleu/15 p-4">
+								<div class="flex items-baseline justify-between gap-3">
+									<h3 class="m-0 font-monograph text-xl font-normal text-encre">{u.nom}</h3>
+									<p class="m-0 text-xs font-semibold tracking-wider text-gris uppercase">
+										{u.projets.length} {u.projets.length > 1 ? "projets" : "projet"}
+									</p>
+								</div>
+								<ul class="m-0 list-none space-y-1 p-0">
+									{u.projets.map((p) => <li><a href={`/projets/${p.id}`} class="lien text-sm">{p.titre}</a></li>)}
+								</ul>
+							</div>
+						</li>
+					))
+				}
+			</ul>
+		</section>
+
+		<section class="papier flex flex-col items-center justify-between gap-5 p-6 text-center sm:flex-row sm:text-left" aria-labelledby="titre-suite">
+			<div class="space-y-2">
+				<h2 id="titre-suite" class="titre-section">Envie d'en discuter ?</h2>
+				<p class="texte texte-doux">CV : [À COMPLÉTER] (ajoute le fichier PDF pour activer le téléchargement).</p>
+			</div>
+			<div class="flex flex-wrap justify-center gap-2">
+				<a href="/projets" class="bouton">Voir mes projets</a>
+				<a href="/contact" class="bouton bouton-plein">Me contacter</a>
+			</div>
+		</section>
+	</div>
+</Layout>

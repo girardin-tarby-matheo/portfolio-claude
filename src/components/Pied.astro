@@ -1,0 +1,29 @@
+---
+/** Pied de page commun (absent de la carte d'accueil, qui occupe tout l'écran). */
+import Bosquet from "./Bosquet.astro";
+
+const liens = [
+	{ href: "/", label: "La carte" },
+	{ href: "/projets", label: "Mes Projets" },
+	{ href: "/a-propos", label: "À propos" },
+	{ href: "/contact", label: "Contact" },
+];
+---
+
+<footer class="px-4 pb-6 sm:px-6 lg:px-10">
+	<div class="mx-auto w-full max-w-[1280px]">
+		<Bosquet elements={["buisson", "sapin", "arbre", "sapin", "souche"]} class="ml-6 -mb-px opacity-90" />
+		<div
+			class="flex flex-col items-center justify-between gap-4 rounded-2xl border border-bleu/15 bg-casse px-5 py-4 shadow-carte sm:flex-row"
+		>
+			<p class="m-0 text-center text-sm text-gris sm:text-left">
+				<span class="font-monograph text-lg text-encre">Mathéo Girardin Tarby</span>
+				<span class="mx-2 text-bleu/40" aria-hidden="true">·</span>
+				Étudiant en BUT MMI
+			</p>
+			<nav class="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label="Pied de page">
+				{liens.map((l) => <a href={l.href} class="text-sm font-semibold text-bleu no-underline hover:text-encre hover:underline hover:underline-offset-4">{l.label}</a>)}
+			</nav>
+		</div>
+	</div>
+</footer>

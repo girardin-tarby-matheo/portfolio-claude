@@ -1,0 +1,699 @@
+---
+/**
+ * Carte d'accueil : rend le monde (SVG de fond + un <button> par bâtiment + décor), l'interface
+ * et un gabarit <template> par projet. Le comportement (caméra, personnage, panneau) est dans
+ * src/scripts/carte.ts.
+ */
+import { WORLD, LIEUX, ZONES, ARETES, DECOR, DEPART, RIVIERE_L, LAC, riviereX, pointsArete, genererForet, TYPES_DECOR } from "../../data/lieux";
+import { chargerProjets, type ProjetCarte } from "../../data/projets";
+import { K } from "../../lib/palette";
+import { dessinLieu, dessinFond, tailleIcone } from "../../lib/svg";
+import YoutubeEmbed from "../YoutubeEmbed.astro";
+import InstagramEmbed from "../InstagramEmbed.astro";
+import Decor from "./Decor.astro";
+import Personnage from "./Personnage.astro";
+/* Dessins modifiables à la main : voir src/lib/svg.ts (src/assets/carte/fond.svg et src/assets/lieux/). */
+const BATIMENTS: Record<string, string> = Object.fromEntries(LIEUX.map((l) => [l.slug, dessinLieu(l.slug)]));
+for (const l of LIEUX) if (!BATIMENTS[l.slug]) console.warn(`[carte] dessin manquant : src/assets/lieux/${l.slug}.svg`);
+const FOND = dessinFond();
+if (!FOND) console.warn("[carte] fond manquant : src/assets/carte/fond.svg");
+
+/* --------------------------- Données --------------------------- */
+const { projets, repli } = await chargerProjets();
+
+const parLieu = new Map<string, ProjetCarte[]>(LIEUX.map((l) => [l.slug, []]));
+const sansLieu: ProjetCarte[] = [];
+for (const p of projets) {
+	if (p.lieu && parLieu.has(p.lieu)) parLieu.get(p.lieu)!.push(p);
+	else sansLieu.push(p);
+}
+if (sansLieu.length) {
+	console.warn(`[carte] ${sansLieu.length} projet(s) sans lieu : ${sansLieu.map((p) => p.titre).join(", ")}`);
+}
+const projetsCartographies = projets.filter((p) => p.lieu && parLieu.has(p.lieu));
+const donnees = {
+	lieux: Object.fromEntries(
+		[...parLieu].map(([slug, ps]) => [slug, ps.map((p) => ({ id: p.id, titre: p.titre }))]),
+	),
+};
+
+/* --------------------------- Minicarte --------------------------- */
+const pointsRiviere: string[] = [];
+for (let y = -60; y <= WORLD.h + 60; y += 20) pointsRiviere.push(`${riviereX(y).toFixed(1)},${y}`);
+const riviereD = `M${pointsRiviere.join(" L")}`;
+
+// tracés pour la minicarte (le fond détaillé est dans src/assets/carte/fond.svg)
+const aretes = ARETES.map((_, i) => ({ d: `M${pointsArete(i).map(([x, y]) => `${x},${y}`).join(" L")}` }));
+
+/* --------------------------- Forêt et décor --------------------------- */
+const decor = [...genererForet(), ...DECOR];
+// taille de chaque élément de décor : lue dans son fichier SVG (src/assets/icones/)
+const decorTailles = Object.fromEntries(TYPES_DECOR.map((n) => [n, tailleIcone(n)])) as Record<string, [number, number]>;
+
+const aVoixHaute = projetsCartographies.length;
+---
+
+<section class="carte" data-carte aria-labelledby="carte-titre-page">
+	<div class="carte-cadre">
+		<!-- ============ Monde ============ -->
+		<div class="carte-vp" tabindex="-1">
+			<div class="carte-monde" style={`width:${WORLD.w}px;height:${WORLD.h}px`}>
+				<Fragment set:html={FOND} />
+
+				<Decor />
+
+				<!-- forêt et décor -->
+				{decor.map((d) => {
+					const [w, h] = decorTailles[d.t];
+					const s = d.s ?? 1;
+					return (
+						<svg class="carte-decor" aria-hidden="true" focusable="false" style={`left:${d.x - (w * s) / 2}px;top:${d.y - h * s}px;width:${w * s}px;height:${h * s}px;z-index:${d.y}`}>
+							<use href={`#d-${d.t}`} width="100%" height="100%" />
+						</svg>
+					);
+				})}
+
+				<!-- bâtiments -->
+				{LIEUX.map((l) => {
+					const art = BATIMENTS[l.slug] ?? "";
+					const ps = parLieu.get(l.slug) ?? [];
+					const actif = ps.length > 0;
+					const Tag = actif ? "button" : "div";
+					const style = `left:${l.x - l.zone.w / 2}px;top:${l.y - l.zone.h + 12}px;width:${l.zone.w}px;height:${l.zone.h}px;z-index:${l.y}`;
+					const libelle = ps.length > 1 ? l.nom : ps[0]?.titre;
+					const cats = ps.length === 1 ? ps[0].categories : [];
+					const label = actif
+						? `Ouvrir ${ps.length > 1 ? "les projets" : "le projet"} ${ps.map((p) => p.titre).join(", ")} (${l.nom})`
+						: undefined;
+					return (
+						<Tag
+							class:list={["bat", { "bat--off": !actif }]}
+							type={actif ? "button" : undefined}
+							data-lieu={l.slug}
+							aria-label={label}
+							aria-hidden={actif ? undefined : "true"}
+							style={style}
+						>
+							<Fragment set:html={art} />
+							{actif && (
+								<span class="bat-tag" aria-hidden="true">
+									<span class="bat-tag-titre">{libelle}</span>
+									{ps.length > 1 && <span class="bat-tag-liste">{ps.map((p) => p.titre).join(" · ")}</span>}
+									{cats.length > 0 && (
+										<span class="bat-tag-cats">
+											{cats.map((c) => <span class="pastille">{c}</span>)}
+										</span>
+									)}
+									<span class="bat-tag-aide">Entrée pour ouvrir</span>
+								</span>
+							)}
+						</Tag>
+					);
+				})}
+
+				<!-- personnage -->
+				<div class="carte-perso" style={`z-index:${DEPART.y}`}>
+					<Personnage />
+				</div>
+			</div>
+		</div>
+
+		<!-- ============ Interface ============ -->
+		<div class="carte-cartouche">
+			<h1 id="carte-titre-page" class="carte-titre">Mes Projets</h1>
+			<p class="carte-sous-titre">{aVoixHaute} projets à explorer</p>
+		</div>
+
+		<div class="carte-outils" role="group" aria-label="Contrôles de la carte">
+			<button type="button" class="carte-btn carte-btn--icone" data-action="zoom-plus" aria-label="Zoomer">
+				<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
+			</button>
+			<button type="button" class="carte-btn carte-btn--icone" data-action="zoom-moins" aria-label="Dézoomer">
+				<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
+			</button>
+			<button type="button" class="carte-btn" data-action="recentrer">Recentrer</button>
+			<a class="carte-btn carte-btn--plein" href="/projets">Vue liste</a>
+		</div>
+
+		<svg class="carte-mini" viewBox={`0 0 ${WORLD.w} ${WORLD.h}`} aria-hidden="true" focusable="false">
+			<rect width={WORLD.w} height={WORLD.h} fill={K.papier} />
+			<rect width={WORLD.w} height={WORLD.h} fill={K.cremeFonce} fill-opacity="0.7" />
+			{ZONES.map((z) => <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="160" fill={K.papier} />)}
+			<ellipse cx={LAC.cx} cy={LAC.cy} rx={LAC.rx} ry={LAC.ry} fill={K.ciel} />
+			<path d={riviereD} fill="none" stroke={K.ciel} stroke-width={RIVIERE_L} />
+			<g fill="none" stroke={K.cielFonce} stroke-width="22" stroke-linecap="round">
+				{aretes.map((e) => <path d={e.d} />)}
+			</g>
+			{LIEUX.map((l) => <circle cx={l.x} cy={l.y - l.zone.h * 0.35} r="34" fill={K.bleu} />)}
+			<rect class="mini-vue" fill={K.encre} fill-opacity="0.08" stroke={K.encre} stroke-width="8" rx="10" />
+			<circle class="mini-perso" r="26" fill={K.encre} stroke={K.papier} stroke-width="8" />
+		</svg>
+
+		<div class="carte-indice" hidden>
+			<p>
+				<span class="indice-clavier">Déplace-toi avec ZQSD ou les flèches, clique sur un bâtiment</span>
+				<span class="indice-tactile">Glisse pour te déplacer, pince pour zoomer, touche un bâtiment</span>
+			</p>
+			<button type="button" class="carte-btn carte-btn--icone" data-action="fermer-indice" aria-label="Fermer l'indication">
+				<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
+			</button>
+		</div>
+
+		<!-- ============ Panneau projet ============ -->
+		<aside class="carte-panneau" id="carte-panneau" role="dialog" aria-modal="false" aria-labelledby="carte-titre-panneau">
+			<button type="button" class="carte-fermer" data-action="fermer" aria-label="Fermer le panneau">
+				<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
+			</button>
+			<div class="carte-onglets" role="tablist" aria-label="Projets de ce lieu" hidden></div>
+			<div class="carte-contenu"></div>
+		</aside>
+	</div>
+
+	<!-- Liste des projets : reste dans le DOM, lisible sans la carte -->
+	<nav class="sr-only" aria-label="Liste des projets">
+		<h2>Tous les projets</h2>
+		<ul>
+			{projets.map((p) => <li><a href={`/projets/${p.id}`}>{p.titre}</a></li>)}
+		</ul>
+		<a href="/projets">Vue liste des projets</a>
+	</nav>
+
+	<!-- Gabarits du panneau, un par projet (clonés à l'ouverture, donc embeds chargés à la demande) -->
+	{projetsCartographies.map((p) => (
+		<template data-projet={p.id}>
+			<article class="cp">
+				<div class="cp-media">
+					{p.cover ? (
+						<img src={p.cover} alt={`Couverture du projet ${p.titre}`} loading="lazy" decoding="async" />
+					) : (
+						<div class="cp-vide"><span>Visuel {repli ? "[À COMPLÉTER]" : "indisponible"}</span></div>
+					)}
+				</div>
+				<div class="cp-corps">
+					<div class="cp-tete">
+						<h2 id="carte-titre-panneau" class="cp-titre" tabindex="-1">{p.titre}</h2>
+						{p.dateTexte && <p class="cp-date">{p.dateTexte}</p>}
+					</div>
+					{p.categories.length > 0 && (
+						<div class="cp-pastilles">
+							{p.categories.map((c) => <span class="pastille">{c}</span>)}
+						</div>
+					)}
+					{p.descriptions.map((d) => <p class="cp-desc">{d}</p>)}
+					{(p.youtube || p.instagram) && (
+						<div class="cp-medias">
+							{p.youtube && <YoutubeEmbed url={p.youtube} />}
+							{p.instagram && <InstagramEmbed url={p.instagram} />}
+						</div>
+					)}
+					{repli && !p.youtube && !p.instagram && <p class="cp-desc cp-manquant">Médias [À COMPLÉTER]</p>}
+					<a class="cp-lien" href={`/projets/${p.id}`}>Voir la fiche complète</a>
+				</div>
+			</article>
+		</template>
+	))}
+
+	<script type="application/json" id="carte-donnees" set:html={JSON.stringify(donnees)} />
+</section>
+
+<script>
+	import "../../scripts/carte.ts";
+</script>
+
+<style is:global>
+	/* ---------- cadre ---------- */
+	.carte {
+		position: relative;
+		flex: 1 1 0;
+		min-height: 0;
+		margin: -0.75rem 2.5rem 1.5rem;
+	}
+	@media (max-width: 768px) {
+		.carte {
+			margin: 0 1rem 1rem;
+		}
+	}
+	.carte-cadre {
+		position: relative;
+		height: 100%;
+		overflow: hidden;
+		border-radius: 16px;
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+		background: #f5eedd;
+		animation: carte-rise 650ms ease-out both;
+	}
+	@keyframes carte-rise {
+		from { opacity: 0; transform: translateY(14px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	/* ---------- monde ---------- */
+	.carte-vp {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		touch-action: none;
+		user-select: none;
+		-webkit-user-select: none;
+		cursor: grab;
+		outline: none;
+	}
+	.carte-vp.is-drag { cursor: grabbing; }
+	.carte-monde {
+		position: absolute;
+		left: 0;
+		top: 0;
+		transform-origin: 0 0;
+		will-change: transform;
+	}
+	.carte-fond {
+		position: absolute;
+		inset: 0;
+		max-width: none;
+		width: 100%;
+		height: 100%;
+	}
+	.carte-decor {
+		position: absolute;
+		max-width: none;
+		pointer-events: none;
+	}
+
+	/* ---------- bâtiments ---------- */
+	.bat {
+		position: absolute;
+		display: block;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+		border-radius: 16px;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.bat .bat-art {
+		width: 100%;
+		height: 100%;
+		max-width: none;
+		pointer-events: none;
+		transition: transform 220ms ease, filter 220ms ease;
+	}
+	.bat:hover .bat-art,
+	.bat:focus-visible .bat-art {
+		transform: translateY(-4px);
+	}
+	.bat.is-near .bat-art,
+	.bat.is-active .bat-art {
+		transform: translateY(-4px);
+		filter: drop-shadow(0 10px 14px rgba(22, 88, 123, 0.3));
+	}
+	.bat:hover,
+	.bat:focus-visible,
+	.bat.is-near,
+	.bat.is-active {
+		z-index: 100000 !important;
+	}
+	.bat:focus-visible {
+		outline: 3px solid #16587b;
+		outline-offset: 3px;
+	}
+	.bat--off {
+		opacity: 0.5;
+		pointer-events: none;
+		cursor: default;
+	}
+
+	.bat-tag {
+		position: absolute;
+		left: 50%;
+		bottom: calc(100% - 26px);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.55rem 0.85rem;
+		white-space: nowrap;
+		text-align: center;
+		border-radius: 16px;
+		background:
+			linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 238, 221, 0.94)),
+			#f5f2eb;
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+		opacity: 0;
+		pointer-events: none;
+		transform: translate(-50%, 6px) scale(var(--inv, 1));
+		transform-origin: 50% 100%;
+		transition: opacity 220ms ease, transform 220ms ease;
+	}
+	.bat:hover .bat-tag,
+	.bat:focus-visible .bat-tag,
+	.bat.is-near .bat-tag,
+	.bat.is-active .bat-tag {
+		opacity: 1;
+		transform: translate(-50%, 0) scale(var(--inv, 1));
+	}
+	.bat-tag-titre {
+		font-family: var(--font-monograph), serif;
+		font-size: 1.2rem;
+		line-height: 1.06;
+		color: #0f425f;
+	}
+	.bat-tag-liste {
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #4a5568;
+	}
+	.bat-tag-cats { display: flex; gap: 0.35rem; }
+	.bat-tag-aide {
+		display: none;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		color: #4a5568;
+	}
+	.bat.is-near .bat-tag-aide { display: block; }
+
+	/* ---------- personnage ---------- */
+	.carte-perso {
+		position: absolute;
+		left: -20px;
+		top: -56px;
+		width: 40px;
+		height: 60px;
+		pointer-events: none;
+		will-change: transform;
+	}
+	.carte-perso .perso-svg { width: 100%; height: 100%; max-width: none; }
+	.carte-perso .perso-corps { transform-box: fill-box; }
+	.carte-perso.is-gauche .perso-svg { transform: scaleX(-1); }
+	.carte-perso.is-walking .jambe-a { animation: carte-pas 300ms ease-in-out infinite alternate; }
+	.carte-perso.is-walking .jambe-b { animation: carte-pas 300ms ease-in-out infinite alternate-reverse; }
+	@keyframes carte-pas {
+		from { transform: translateY(-2px); }
+		to { transform: translateY(1px); }
+	}
+
+	/* ---------- interface ---------- */
+	.carte-cartouche {
+		position: absolute;
+		top: 14px;
+		left: 14px;
+		padding: 0.6rem 1rem 0.65rem;
+		border-radius: 16px;
+		background: rgba(245, 242, 235, 0.88);
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+		pointer-events: none;
+	}
+	.carte-titre {
+		margin: 0;
+		font-family: var(--font-monograph), serif;
+		font-weight: 400;
+		line-height: 0.95;
+		font-size: clamp(1.5rem, 3.2vw, 2.4rem);
+		color: #0f425f;
+	}
+	.carte-sous-titre {
+		margin: 0.35rem 0 0;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.8rem;
+		color: #4a5568;
+	}
+
+	.carte-outils {
+		position: absolute;
+		top: 14px;
+		right: 14px;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 0.5rem;
+		transition: right 300ms ease-out;
+	}
+	.carte-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgba(22, 88, 123, 0.22);
+		background: rgba(255, 255, 255, 0.82);
+		color: #16587b;
+		border-radius: 999px;
+		padding: 0.44rem 0.85rem;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.82rem;
+		font-weight: 600;
+		text-decoration: none;
+		cursor: pointer;
+		transition: transform 180ms ease, background 180ms ease;
+	}
+	.carte-btn:hover { transform: translateY(-1px); background: #fff; }
+	.carte-btn:focus-visible,
+	.carte-fermer:focus-visible,
+	.carte-onglet:focus-visible,
+	.cp-lien:focus-visible {
+		outline: 3px solid #16587b;
+		outline-offset: 2px;
+	}
+	.carte-btn--icone { width: 2.2rem; height: 2.2rem; padding: 0; }
+	.carte-btn--plein { background: #16587b; color: #f5eedd; }
+	.carte-btn--plein:hover { background: #0f425f; }
+
+	.carte-mini {
+		position: absolute;
+		left: 14px;
+		bottom: 14px;
+		width: 168px;
+		height: auto;
+		aspect-ratio: 2400 / 1700;
+		max-width: none;
+		border-radius: 12px;
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+		cursor: crosshair;
+		touch-action: none;
+		overflow: hidden;
+	}
+	@media (max-width: 639px) {
+		.carte-mini { display: none; }
+	}
+
+	.carte-indice {
+		position: absolute;
+		left: 50%;
+		bottom: 16px;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: max-content;
+		max-width: calc(100% - 28px);
+		padding: 0.5rem 0.6rem 0.5rem 1rem;
+		border-radius: 999px;
+		background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 238, 221, 0.94)), #f5f2eb;
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 10px 20px rgba(22, 88, 123, 0.11);
+		animation: carte-rise 650ms ease-out 400ms both;
+	}
+	.carte-indice[hidden] { display: none; }
+	.carte-indice p {
+		margin: 0;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: #0f425f;
+	}
+	.indice-tactile { display: none; }
+	@media (pointer: coarse) {
+		.indice-clavier { display: none; }
+		.indice-tactile { display: inline; }
+	}
+	.carte-indice.is-out {
+		opacity: 0;
+		transform: translateX(-50%) translateY(8px);
+		transition: opacity 300ms ease, transform 300ms ease;
+		pointer-events: none;
+	}
+	@media (min-width: 640px) and (max-width: 1100px) {
+		.carte-indice { left: auto; right: 14px; transform: none; }
+		.carte-indice.is-out { transform: translateY(8px); }
+	}
+	@media (max-width: 639px) {
+		/* petit écran : les outils passent en bas pour ne pas recouvrir le cartouche */
+		.carte-outils { top: auto; bottom: 12px; right: 12px; left: 12px; justify-content: center; }
+		.carte.has-panel .carte-outils { display: none; }
+		.carte-indice { border-radius: 16px; bottom: 64px; }
+	}
+	.carte.has-panel .carte-indice { display: none; }
+
+	/* ---------- panneau projet ---------- */
+	.carte-panneau {
+		position: absolute;
+		z-index: 2000000;
+		top: 12px;
+		right: 12px;
+		bottom: 12px;
+		width: min(440px, calc(100% - 24px));
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		border-radius: 16px;
+		background: linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(240, 231, 210, 0.94)), #f5f2eb;
+		border: 1px solid rgba(22, 88, 123, 0.16);
+		box-shadow: 0 16px 30px rgba(22, 88, 123, 0.18);
+		opacity: 0;
+		visibility: hidden;
+		transform: translateX(24px);
+		transition: transform 300ms ease-out, opacity 300ms ease-out, visibility 0s linear 300ms;
+	}
+	.carte-panneau.is-open {
+		opacity: 1;
+		visibility: visible;
+		transform: none;
+		transition-delay: 0s;
+	}
+	@media (min-width: 768px) {
+		.carte.has-panel .carte-outils { right: calc(min(440px, 100% - 24px) + 26px); }
+	}
+	@media (max-width: 767px) {
+		.carte-panneau {
+			top: auto;
+			left: 8px;
+			right: 8px;
+			bottom: 8px;
+			width: auto;
+			max-height: 64%;
+			transform: translateY(24px);
+		}
+		.cp-media { height: 8.5rem; }
+		.carte.has-panel .carte-cartouche { display: none; }
+	}
+	.carte-fermer {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		z-index: 3;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.2rem;
+		height: 2.2rem;
+		border-radius: 999px;
+		border: 1px solid rgba(22, 88, 123, 0.22);
+		background: rgba(245, 242, 235, 0.94);
+		color: #0f425f;
+		cursor: pointer;
+		transition: transform 180ms ease;
+	}
+	.carte-fermer:hover { transform: translateY(-1px); }
+	.carte-onglets {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		padding: 0.7rem 3.4rem 0.2rem 0.9rem;
+	}
+	.carte-onglets[hidden] { display: none; }
+	.carte-onglet {
+		border: 1px solid rgba(22, 88, 123, 0.22);
+		background: rgba(255, 255, 255, 0.7);
+		color: #16587b;
+		border-radius: 999px;
+		padding: 0.4rem 0.8rem;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.8rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: transform 180ms ease, background 180ms ease;
+	}
+	.carte-onglet:hover { transform: translateY(-1px); }
+	.carte-onglet[aria-selected="true"] { background: #16587b; color: #f5eedd; }
+	.carte-contenu {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.cp-media {
+		position: relative;
+		height: 13rem;
+		overflow: hidden;
+	}
+	.cp-media img { width: 100%; height: 100%; max-width: none; object-fit: cover; }
+	.cp-media::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(to top, rgba(9, 37, 54, 0.28), transparent 42%);
+		opacity: 0.6;
+		pointer-events: none;
+	}
+	.cp-vide {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(160deg, #b5d1e1, #84b3ce);
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: #0f425f;
+	}
+	.cp-corps { padding: 1rem 1.25rem 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; }
+	.cp-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+	.cp-titre {
+		margin: 0;
+		font-family: var(--font-monograph), serif;
+		font-weight: 400;
+		font-size: 1.7rem;
+		line-height: 1.06;
+		color: #0f425f;
+		outline: none;
+	}
+	.cp-date {
+		margin: 0.35rem 0 0;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: rgba(15, 66, 95, 0.78);
+		white-space: nowrap;
+	}
+	.cp-pastilles { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.cp-desc { margin: 0; font-size: 0.97rem; line-height: 1.65; color: #16587b; }
+	.cp-manquant { font-family: var(--font-inter), sans-serif; font-weight: 600; }
+	.cp-medias { display: flex; flex-direction: column; }
+	.cp-medias .youtube-embed-container,
+	.cp-medias .instagram-embed { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+	.cp-lien {
+		align-self: flex-start;
+		display: inline-flex;
+		align-items: center;
+		padding: 0.55rem 1rem;
+		border-radius: 999px;
+		background: #16587b;
+		color: #f5eedd;
+		font-family: var(--font-inter), sans-serif;
+		font-size: 0.88rem;
+		font-weight: 600;
+		text-decoration: none;
+		transition: transform 180ms ease, background 180ms ease;
+	}
+	.cp-lien:hover { transform: translateY(-2px); background: #0f425f; }
+
+	/* ---------- mouvement réduit ---------- */
+	@media (prefers-reduced-motion: reduce) {
+		.carte *,
+		.carte *::before,
+		.carte *::after {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+</style>

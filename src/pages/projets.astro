@@ -1,0 +1,105 @@
+---
+import Layout from "../layouts/Layout.astro";
+import EnTete from "../components/EnTete.astro";
+import Bosquet from "../components/Bosquet.astro";
+import CardProjet from "../components/CardProjet.astro";
+import { chargerProjets, parDateDecroissante } from "../data/projets";
+import { A_COMPLETER } from "../data/projets-repli";
+
+const { projets, repli } = await chargerProjets();
+const projetsTries = [...projets].sort(parDateDecroissante);
+
+// Catégories uniques, dans l'ordre d'apparition
+const categories = [...new Set(projetsTries.flatMap((p) => p.categories))].filter((c) => c !== A_COMPLETER);
+---
+
+<Layout large title="Mes Projets" description="Tous les projets de Mathéo Girardin Tarby : filtre par catégorie, tri par date ou par ordre alphabétique.">
+	<div class="space-y-6">
+		<EnTete surTitre="Vue liste" titre="Mes Projets">
+			<p class="texte texte-doux">
+				{projetsTries.length} projets, à parcourir ici ou à explorer sur la carte.
+			</p>
+			<Bosquet slot="illustration" elements={["sapin", "arbre", "banc", "buisson"]} class="hidden sm:flex" />
+		</EnTete>
+
+		{repli && <p class="a-completer apparition">Les projets en ligne sont indisponibles pour le moment : seuls les titres sont affichés, le reste est marqué « [À COMPLÉTER] ».</p>}
+
+		<section class="apparition apparition-2 space-y-5" aria-label="Liste des projets">
+			<div class="flex flex-wrap items-center gap-2">
+				<button class="filter-btn bouton is-active" data-filter="all" aria-pressed="true">Tous</button>
+				{categories.map((cat) => <button class="filter-btn bouton" data-filter={cat} aria-pressed="false">{cat}</button>)}
+
+				<div class="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+					<select id="sortSelect" class="bouton flex-1 cursor-pointer sm:flex-none" aria-label="Trier les projets">
+						<option value="recent">Plus récent</option>
+						<option value="old">Plus ancien</option>
+						<option value="alpha">Ordre alphabétique</option>
+					</select>
+					<a href="/" class="bouton bouton-plein">Vue carte</a>
+				</div>
+			</div>
+
+			<div id="projectsGrid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
+				{
+					projetsTries.map((projet) => (
+						<div class="project-card" data-categories={projet.categories.join(",")} data-date={projet.date || "2000-01-01"} data-title={projet.titre}>
+							<CardProjet projet={projet} />
+						</div>
+					))
+				}
+			</div>
+			<p id="aucunProjet" class="a-completer" hidden>Aucun projet dans cette catégorie.</p>
+		</section>
+	</div>
+</Layout>
+
+<script>
+	const buttons = document.querySelectorAll<HTMLButtonElement>(".filter-btn");
+	const cards = Array.from(document.querySelectorAll<HTMLElement>(".project-card"));
+	const sortSelect = document.getElementById("sortSelect");
+	const grid = document.getElementById("projectsGrid");
+	const vide = document.getElementById("aucunProjet");
+
+	if (sortSelect instanceof HTMLSelectElement && grid) {
+		/* ---------------- FILTRE PAR CATÉGORIE ---------------- */
+		buttons.forEach((btn) => {
+			btn.addEventListener("click", () => {
+				const category = btn.dataset.filter || "all";
+
+				buttons.forEach((b) => {
+					const actif = b === btn;
+					b.classList.toggle("is-active", actif);
+					b.setAttribute("aria-pressed", String(actif));
+				});
+
+				let visibles = 0;
+				cards.forEach((card) => {
+					const cats = (card.dataset.categories || "").split(",").map((c) => c.trim()).filter(Boolean);
+					const montre = category === "all" || cats.includes(category);
+					card.hidden = !montre;
+					if (montre) visibles++;
+				});
+				if (vide) vide.hidden = visibles > 0;
+			});
+		});
+
+		/* ---------------- TRI PAR DATE / ALPHA ---------------- */
+		const date = (c: HTMLElement) => new Date(c.dataset.date || "2000-01-01").getTime();
+		sortSelect.addEventListener("change", () => {
+			const mode = sortSelect.value;
+			const tri = [...cards];
+			if (mode === "recent") tri.sort((a, b) => date(b) - date(a));
+			if (mode === "old") tri.sort((a, b) => date(a) - date(b));
+			if (mode === "alpha") tri.sort((a, b) => (a.dataset.title || "").localeCompare(b.dataset.title || "", "fr"));
+			tri.forEach((card) => grid.appendChild(card));
+		});
+	}
+</script>
+
+<style>
+	.filter-btn.is-active {
+		background: #16587b;
+		border-color: #16587b;
+		color: #f5eedd;
+	}
+</style>
